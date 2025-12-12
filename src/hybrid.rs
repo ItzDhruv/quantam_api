@@ -111,8 +111,8 @@ pub fn generate_hybrid_keypair() -> (HybridPublicKey, HybridSecretKey) {
         ed25519_pk: ed_pk,
         compressed_key: compressed,
     };
-    println!("Dilithium Secret Key: {:?}", hex::encode(dil_sk.as_bytes()));
-    println!("Ed25519 Secret Key: {:?}", hex::encode(ed_sk.to_bytes())); 
+    // println!("Dilithium Secret Key: {:?}", hex::encode(dil_sk.as_bytes()));
+    // println!("Ed25519 Secret Key: {:?}", hex::encode(ed_sk.to_bytes())); 
 
     let hybrid_sk = HybridSecretKey {
         dilithium_sk: dil_sk,
