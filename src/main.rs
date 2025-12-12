@@ -12,7 +12,7 @@ async fn main() {
     println!("Server runs on  http://localhost:3000/");
 
     let app = Router::new()
-                                        .route("/", get(|| async { "Hello, World!" }))
+                                        .route("/", get(|| async { "Scanbo key genration" }))
                                         .route("/hybrid_key", get(hybrid_key))
                                         .route("/hybrid_sign", post(hybrid_sign));
     // run our app with hyper, listening globally on port 3000
