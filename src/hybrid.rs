@@ -36,15 +36,6 @@ pub struct SignRequest {
     pub secret_ed25519_hex: String,
 }
 
-#[derive(Serialize)]
-pub struct VerifyRequest{
-    pub dilithium_signature: String,
-    pub ed25519_signature: String,
-    pub message_hex: String,
-    pub compressed_key_hex: String,
-    pub dilithium_pk_hex: String,
-    pub ed25519_pk_hex: String,
-}
 
 /// Hybrid public key returned to the client
 #[derive(Serialize)]
@@ -111,8 +102,8 @@ pub fn generate_hybrid_keypair() -> (HybridPublicKey, HybridSecretKey) {
         ed25519_pk: ed_pk,
         compressed_key: compressed,
     };
-    // println!("Dilithium Secret Key: {:?}", hex::encode(dil_sk.as_bytes()));
-    // println!("Ed25519 Secret Key: {:?}", hex::encode(ed_sk.to_bytes())); 
+    println!("Dilithium Secret Key: {:?}", hex::encode(dil_sk.as_bytes()));
+    println!("Ed25519 Secret Key: {:?}", hex::encode(ed_sk.to_bytes())); 
 
     let hybrid_sk = HybridSecretKey {
         dilithium_sk: dil_sk,
