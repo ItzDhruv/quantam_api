@@ -52,7 +52,7 @@ pub struct HybridSecretKey {
 
 
 
-fn minimize_key(dil_pk: &DilithiumPublicKey, ed_pk: &VerifyingKey) -> [u8; 32] {
+pub fn minimize_key(dil_pk: &DilithiumPublicKey, ed_pk: &VerifyingKey) -> [u8; 32] {
     let mut hasher = Hasher::new();
     hasher.update(dil_pk.as_bytes());
     hasher.update(&ed_pk.to_bytes());

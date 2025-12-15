@@ -1,10 +1,9 @@
 use axum::{routing::get, Router, Json};
 
-mod ed25519_hybrid;
-mod sr25519;
-mod sr25519_hybrid;
+mod signature;
 
-use ed25519_hybrid::HybridKeypairJson;
+use signature::ed25519_hybrid::HybridKeypairJson;
+use signature::{ed25519_hybrid, sr25519, sr25519_hybrid};
 
 #[tokio::main]
 async fn main() {
