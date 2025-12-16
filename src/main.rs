@@ -19,7 +19,7 @@ async fn main() {
         .route("/signature/sr25519", get(sr25519::generate_sr25519_wallet))
         .route(
             "/signature/sr25519_hk",
-            get(sr25519_hybrid::hybrid_sr25519_handler),
+            get(sr25519_hybrid::hybrid_sr25519_kyber_handler),
         )
 
         //  File encryption API
