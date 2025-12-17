@@ -43,21 +43,21 @@ fn encrypt_bytes_for_recipients(
 
     println!("\n[ENC-1] Plaintext size = {} bytes", plaintext.len());
 
-    // 1️⃣ Generate ChaCha key
+    //  Generate ChaCha key
     let mut chacha_key = [0u8; 32];
     OsRng.fill_bytes(&mut chacha_key);
     println!("[ENC-2] ChaCha key generated (32 bytes)");
 
     let file_cipher = ChaCha20Poly1305::new(Key::from_slice(&chacha_key));
 
-    // 2️⃣ Nonce
+    // Nonce
     let mut nonce_bytes = [0u8; 12];
     OsRng.fill_bytes(&mut nonce_bytes);
     println!("[ENC-3] Nonce generated = {}", hex::encode(nonce_bytes));
 
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    // 3️⃣ Encrypt file
+    //  Encrypt file
     let ciphertext = file_cipher
         .encrypt(nonce, plaintext)
         .map_err(|_| "file encryption failed")?;
@@ -69,7 +69,7 @@ fn encrypt_bytes_for_recipients(
 
     let mut kyber_outputs = Vec::new();
 
-    // 4️⃣ Kyber wrap ChaCha key
+    //  Kyber wrap ChaCha key
     for (idx, pk_bytes) in kyber_public_keys.iter().enumerate() {
 
         println!(
@@ -149,14 +149,50 @@ pub async fn encrypt_file_handler(
             }
 
             "kyber_pubkeys" => {
-                let value = field.text().await.unwrap();
-                let decoded = hex::decode(value.trim()).unwrap();
-                println!(
-                    "[ENC-HANDLER] Kyber public key received ({} bytes)",
-                    decoded.len()
-                );
-                kyber_pubkeys.push(decoded);
+    let value = field.text().await.unwrap();
+
+    println!("[ENC-HANDLER] Raw kyber_pubkeys field received");
+
+    for (idx, hex_pk) in value.split(',').enumerate() {
+        let hex_pk = hex_pk.trim();
+
+        if hex_pk.is_empty() {
+            continue;
+        }
+
+        let decoded = match hex::decode(hex_pk) {
+            Ok(v) => v,
+            Err(_) => {
+                return (
+                    axum::http::StatusCode::BAD_REQUEST,
+                    format!("invalid hex in kyber_pubkeys at index {}", idx),
+                )
+                    .into_response();
             }
+        };
+
+        println!(
+            "[ENC-HANDLER] Kyber public key {} decoded ({} bytes)",
+            idx,
+            decoded.len()
+        );
+
+        if decoded.len() != kyber768::public_key_bytes() {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                format!(
+                    "kyber_pubkeys[{}] invalid size (expected {} bytes)",
+                    idx,
+                    kyber768::public_key_bytes()
+                ),
+            )
+                .into_response();
+        }
+
+        kyber_pubkeys.push(decoded);
+    }
+}
+
 
             _ => {}
         }

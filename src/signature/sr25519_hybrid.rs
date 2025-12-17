@@ -100,7 +100,7 @@ fn generate_hybrid_keypair() -> (
     let (kyber_pk, kyber_sk) = kyber_keypair();
     // print!("dbfskb");
     print!("Kyber pubKey : {}", hex::encode(kyber_pk.as_bytes()));
-    let temp = kyber_sk.as_bytes();
+    
     // 4️⃣ Compressed hybrid identifier
     let compressed = minimize_key(&dil_pk, &sr_pk, &kyber_pk);
 
