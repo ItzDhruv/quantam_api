@@ -3,26 +3,20 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use pqcrypto_traits::kem::{PublicKey, SharedSecret, Ciphertext};
 use serde::{Serialize, Deserialize};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use hex;
-use blake3::Hasher;
 
 use chacha20poly1305::{
     ChaCha20Poly1305,
     Key,
     Nonce,
 };
-use chacha20poly1305::aead::{Aead, NewAead};
+use chacha20poly1305::aead::{Aead, KeyInit};
 
 use pqcrypto_kyber::kyber768;
-use pqcrypto_traits::kem::{
-    PublicKey as KemPublicKey,
-    Ciphertext,
-    SharedSecret,
-};
-
 
 /// Kyber-encrypted ChaCha key (per recipient)
 #[derive(Serialize, Deserialize)]
@@ -39,98 +33,137 @@ pub struct EncryptedPayload {
     pub kyber_keys: Vec<KyberEncryptedKey>,
 }
 
-/// -------- CORE ENCRYPTION --------
+/// ----------------------------------------------------------------
+/// CORE ENCRYPTION LOGIC (WITH LOGS)
+/// ----------------------------------------------------------------
 fn encrypt_bytes_for_recipients(
     plaintext: &[u8],
     kyber_public_keys: Vec<Vec<u8>>,
-) -> EncryptedPayload {
-    // ChaCha key
+) -> Result<EncryptedPayload, &'static str> {
+
+    println!("\n[ENC-1] Plaintext size = {} bytes", plaintext.len());
+
+    // 1️⃣ Generate ChaCha key
     let mut chacha_key = [0u8; 32];
     OsRng.fill_bytes(&mut chacha_key);
+    println!("[ENC-2] ChaCha key generated (32 bytes)");
 
-    let cipher = ChaCha20Poly1305::new(Key::from_slice(&chacha_key));
+    let file_cipher = ChaCha20Poly1305::new(Key::from_slice(&chacha_key));
 
-    // Nonce
+    // 2️⃣ Nonce
     let mut nonce_bytes = [0u8; 12];
     OsRng.fill_bytes(&mut nonce_bytes);
+    println!("[ENC-3] Nonce generated = {}", hex::encode(nonce_bytes));
+
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    // Encrypt file
-    let ciphertext = cipher
+    // 3️⃣ Encrypt file
+    let ciphertext = file_cipher
         .encrypt(nonce, plaintext)
-        .expect("file encryption failed");
+        .map_err(|_| "file encryption failed")?;
 
-    // Encrypt ChaCha key for each recipient
+    println!(
+        "[ENC-4] File encrypted. Ciphertext size = {} bytes",
+        ciphertext.len()
+    );
+
     let mut kyber_outputs = Vec::new();
 
-    for pk_bytes in kyber_public_keys {
-        let pk = kyber768::PublicKey::from_bytes(&pk_bytes)
-            .expect("invalid kyber public key");
+    // 4️⃣ Kyber wrap ChaCha key
+    for (idx, pk_bytes) in kyber_public_keys.iter().enumerate() {
 
-        let (kem_ct, shared_secret) = kyber768::encapsulate(&pk);
+        println!(
+            "\n[ENC-5.{}] Kyber public key length = {} bytes",
+            idx,
+            pk_bytes.len()
+        );
 
-        let mut hasher = Hasher::new();
-        hasher.update(shared_secret.as_bytes());
-        let wrapping_key = hasher.finalize();
+        let pk = kyber768::PublicKey::from_bytes(pk_bytes)
+            .map_err(|_| "invalid Kyber public key")?;
 
-        let mut wrapped_key = [0u8; 32];
-        for i in 0..32 {
-            wrapped_key[i] = chacha_key[i] ^ wrapping_key.as_bytes()[i];
-        }
+        let (shared_secret, kem_ct) = kyber768::encapsulate(&pk);
+
+        // let (kem_ct, shared_secret) = kyber768::encapsulate(&pk);
+
+        println!(
+            "[ENC-6.{}] Kyber encapsulated | kem_ct = {} bytes | shared_secret = {} bytes",
+            idx,
+            kem_ct.as_bytes().len(),
+            shared_secret.as_bytes().len()
+        );
+
+        let wrap_key = blake3::derive_key(
+            "kyber768-chacha20-key-wrap-v1",
+            shared_secret.as_bytes(),
+        );
+
+        let wrap_cipher = ChaCha20Poly1305::new(Key::from_slice(&wrap_key));
+        let wrap_nonce = Nonce::from_slice(b"kyber-wrap12");
+
+        let encrypted_chacha_key = wrap_cipher
+            .encrypt(wrap_nonce, chacha_key.as_ref())
+            .map_err(|_| "key wrap failed")?;
+
+        println!(
+            "[ENC-7.{}] ChaCha key wrapped | wrapped_key = {} bytes",
+            idx,
+            encrypted_chacha_key.len()
+        );
 
         kyber_outputs.push(KyberEncryptedKey {
             kem_ciphertext: hex::encode(kem_ct.as_bytes()),
-            encrypted_chacha_key: hex::encode(wrapped_key),
+            encrypted_chacha_key: hex::encode(encrypted_chacha_key),
         });
     }
 
-    EncryptedPayload {
+    println!("\n[ENC-8] Encryption finished successfully");
+
+    Ok(EncryptedPayload {
         nonce: hex::encode(nonce_bytes),
         ciphertext: hex::encode(ciphertext),
         kyber_keys: kyber_outputs,
-    }
+    })
 }
 
-/// -------- AXUM HANDLER --------
-/// POST /encrypt/file
-/// multipart:
-/// - file: binary
-/// - kyber_pubkeys: comma-separated hex strings
+/// ----------------------------------------------------------------
+/// AXUM HANDLER
+/// ----------------------------------------------------------------
 pub async fn encrypt_file_handler(
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    let mut file_bytes: Vec<u8> = Vec::new();
-    let mut kyber_pubkeys: Vec<Vec<u8>> = Vec::new();
+
+    println!("\n[ENC-HANDLER] Incoming encryption request");
+
+    let mut file_bytes = Vec::new();
+    let mut kyber_pubkeys = Vec::new();
 
     while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap_or("");
+        match field.name().unwrap_or("") {
 
-        match name {
             "file" => {
                 file_bytes = field.bytes().await.unwrap().to_vec();
+                println!(
+                    "[ENC-HANDLER] File received ({} bytes)",
+                    file_bytes.len()
+                );
             }
+
             "kyber_pubkeys" => {
                 let value = field.text().await.unwrap();
-                for pk_hex in value.split(',') {
-                    kyber_pubkeys.push(hex::decode(pk_hex.trim()).unwrap());
-                }
+                let decoded = hex::decode(value.trim()).unwrap();
+                println!(
+                    "[ENC-HANDLER] Kyber public key received ({} bytes)",
+                    decoded.len()
+                );
+                kyber_pubkeys.push(decoded);
             }
+
             _ => {}
         }
     }
 
-    if file_bytes.is_empty() || kyber_pubkeys.is_empty() {
-        return (
-            axum::http::StatusCode::BAD_REQUEST,
-            "file or kyber_pubkeys missing",
-        )
-            .into_response();
+    match encrypt_bytes_for_recipients(&file_bytes, kyber_pubkeys) {
+        Ok(payload) => Json(payload).into_response(),
+        Err(e) => (axum::http::StatusCode::BAD_REQUEST, e).into_response(),
     }
-
-    let encrypted = encrypt_bytes_for_recipients(
-        &file_bytes,
-        kyber_pubkeys,
-    );
-
-    Json(encrypted).into_response()
 }
