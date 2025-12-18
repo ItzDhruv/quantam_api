@@ -5,7 +5,7 @@ use blake3::Hasher;
 
 use sp_core::{Pair, sr25519, crypto::Ss58Codec};
 
-// ---------------- PQC ----------------
+
 use pqcrypto_dilithium::dilithium2::{
     keypair as dilithium_keypair,
     PublicKey as DilithiumPublicKey,
@@ -18,11 +18,11 @@ use pqcrypto_kyber::kyber768::{
     SecretKey as KyberSecretKey,
 };
 
-// Traits (IMPORTANT)
+
 use pqcrypto_traits::sign::{PublicKey as _, SecretKey as _};
 use pqcrypto_traits::kem::{PublicKey as _, SecretKey as _};
 
-// ---------------- JSON STRUCTS ----------------
+
 
 #[derive(Serialize)]
 pub struct HybridPublicKeyJson {
@@ -52,7 +52,7 @@ pub struct HybridKeypairJson {
     pub sr25519_wallet: Sr25519WalletJson,
 }
 
-// ---------------- INTERNAL STRUCTS ----------------
+
 
 pub struct HybridPublicKey {
     pub dilithium_pk: DilithiumPublicKey,
@@ -67,7 +67,7 @@ pub struct HybridSecretKey {
     pub kyber_sk: KyberSecretKey,
 }
 
-// ---------------- CORE LOGIC ----------------
+
 
 fn minimize_key(
     dil_pk: &DilithiumPublicKey,
@@ -89,19 +89,19 @@ fn generate_hybrid_keypair() -> (
     HybridSecretKey,
     Sr25519WalletJson,
 ) {
-    // 1️⃣ Dilithium (Signature – PQC)
+    //  Dilithium (Signature – PQC)
     let (dil_pk, dil_sk) = dilithium_keypair();
 
-    // 2️⃣ Sr25519 (Classical blockchain identity)
+    //  Sr25519 (Classical blockchain identity)
     let (pair, mnemonic, seed) = sr25519::Pair::generate_with_phrase(None);
     let sr_pk = pair.public();
 
-    // 3️⃣ Kyber (PQC KEM – encryption)
+    //  Kyber (PQC KEM – encryption)
     let (kyber_pk, kyber_sk) = kyber_keypair();
     // print!("dbfskb");
-    print!("Kyber pubKey : {}", hex::encode(kyber_pk.as_bytes()));
+    // print!("Kyber pubKey : {}", hex::encode(kyber_pk.as_bytes()));
     
-    // 4️⃣ Compressed hybrid identifier
+    //  Compressed hybrid identifier
     let compressed = minimize_key(&dil_pk, &sr_pk, &kyber_pk);
 
     (
