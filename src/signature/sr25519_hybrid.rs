@@ -98,8 +98,6 @@ fn generate_hybrid_keypair() -> (
 
     //  Kyber (PQC KEM – encryption)
     let (kyber_pk, kyber_sk) = kyber_keypair();
-    // print!("dbfskb");
-    // print!("Kyber pubKey : {}", hex::encode(kyber_pk.as_bytes()));
     //  Compressed hybrid identifier
     let compressed = minimize_key(&dil_pk, &sr_pk, &kyber_pk);
 
