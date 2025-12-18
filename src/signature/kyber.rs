@@ -34,27 +34,3 @@ pub async fn generate_kyber_keypair() -> Json<KyberKeypair> {
     
     Json(generate_kyber_keypair_internal())
 }
-
-// Decode Kyber768 public key from hex
-// pub fn kyber_pk_from_hex(hex_pk: &str) -> Result<kyber768::PublicKey, &'static str> {
-//     let bytes = hex::decode(hex_pk).map_err(|_| "Invalid hex")?;
-
-//     if bytes.len() != kyber768::public_key_bytes() {
-//         return Err("INVALID Kyber768 public key size");
-//     }
-
-//     kyber768::PublicKey::from_bytes(&bytes)
-//         .map_err(|_| "Invalid Kyber768 public key bytes")
-// }
-
-// /// Decode Kyber768 secret key from hex
-// pub fn kyber_sk_from_hex(hex_sk: &str) -> Result<kyber768::SecretKey, &'static str> {
-//     let bytes = hex::decode(hex_sk).map_err(|_| "Invalid hex")?;
-
-//     if bytes.len() != kyber768::secret_key_bytes() {
-//         return Err("INVALID Kyber768 secret key size");
-//     }
-
-//     kyber768::SecretKey::from_bytes(&bytes)
-//         .map_err(|_| "Invalid Kyber768 secret key bytes")
-// }

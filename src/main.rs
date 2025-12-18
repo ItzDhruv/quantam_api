@@ -21,7 +21,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(|| async { "Scanbo key generation" }))
 
-        // 🔐 Key generation APIs
+        //  Key generation APIs
         .route("/signature/ed25519_hk", get(hybrid_key))
         .route("/signature/kyber", get(generate_kyber_keypair))
         .route("/signature/sr25519", get(sr25519::generate_sr25519_wallet))
@@ -30,7 +30,7 @@ async fn main() {
             get(sr25519_hybrid::hybrid_sr25519_kyber_handler),
         )
 
-        // 📦 File encryption APIs
+        //  File encryption APIs
         .route("/encrypt/file", post(encrypt_file_handler))
         .route("/decrypt/file", post(decrypt_file_handler));
 
