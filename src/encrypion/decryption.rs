@@ -20,6 +20,8 @@ use pqcrypto_kyber::kyber768;
 pub struct KyberEncryptedKey {
     pub kem_ciphertext: String,
     pub encrypted_chacha_key: String,
+         pub wrap_nonce: String,
+
 }
 
 #[derive(Serialize, Deserialize)]
@@ -52,8 +54,20 @@ fn decrypt_payload(
     let sk = kyber768::SecretKey::from_bytes(kyber_sk_bytes)
         .map_err(|_| "invalid kyber secret key")?;
 
-    let nonce_bytes = hex::decode(&payload.nonce).unwrap();
-    let ciphertext = hex::decode(&payload.ciphertext).unwrap();
+    // let nonce_bytes = hex::decode(&payload.nonce).unwrap();
+    // let ciphertext = hex::decode(&payload.ciphertext).unwrap();
+
+
+    let nonce_bytes = hex::decode(&payload.nonce)
+    .map_err(|_| "invalid nonce hex")?;
+
+        if nonce_bytes.len() != 12 {
+            return Err("invalid nonce length");
+        }
+
+    let ciphertext = hex::decode(&payload.ciphertext)
+        .map_err(|_| "invalid ciphertext hex")?;
+
 
     println!(
         "[DEC-3] Nonce = {} | Ciphertext = {} bytes",
@@ -91,26 +105,60 @@ fn decrypt_payload(
             shared_secret.as_bytes().len()
         );
 
+        // let kek = blake3::derive_key(
+        //     "kyber768-chacha20-key-wrap-v1",
+        //     shared_secret.as_bytes(),
+        // );
+
+        // let wrap_cipher = ChaCha20Poly1305::new(Key::from_slice(&kek));
+        // let wrap_nonce = Nonce::from_slice(b"kyber-wrap12");
+
+        // let wrapped_key = hex::decode(&entry.encrypted_chacha_key).unwrap();
+
+        // let chacha_key = match wrap_cipher.decrypt(wrap_nonce, wrapped_key.as_ref()) {
+        //     Ok(k) => {
+        //         println!("[DEC-7.{}] ChaCha key unwrap SUCCESS", idx);
+        //         k
+        //     }
+        //     Err(_) => {
+        //         println!("[DEC-7.{}] ChaCha key unwrap FAILED", idx);
+        //         continue;
+        //     }
+        // };
+
+
         let kek = blake3::derive_key(
-            "kyber768-chacha20-key-wrap-v1",
-            shared_secret.as_bytes(),
-        );
+    "kyber768-chacha20-key-wrap-v1",
+    shared_secret.as_bytes(),
+);
 
-        let wrap_cipher = ChaCha20Poly1305::new(Key::from_slice(&kek));
-        let wrap_nonce = Nonce::from_slice(b"kyber-wrap12");
+let wrap_cipher = ChaCha20Poly1305::new(Key::from_slice(&kek));
 
-        let wrapped_key = hex::decode(&entry.encrypted_chacha_key).unwrap();
+            //  USE STORED RANDOM NONCE
+            
+            let wrap_nonce_bytes = hex::decode(&entry.wrap_nonce)
+                .map_err(|_| "invalid wrap nonce hex")?;
 
-        let chacha_key = match wrap_cipher.decrypt(wrap_nonce, wrapped_key.as_ref()) {
-            Ok(k) => {
-                println!("[DEC-7.{}] ChaCha key unwrap SUCCESS", idx);
-                k
-            }
-            Err(_) => {
-                println!("[DEC-7.{}] ChaCha key unwrap FAILED", idx);
+            if wrap_nonce_bytes.len() != 12 {
                 continue;
             }
-        };
+
+            let wrap_nonce = Nonce::from_slice(&wrap_nonce_bytes);
+
+            let wrapped_key = hex::decode(&entry.encrypted_chacha_key)
+                .map_err(|_| "invalid wrapped key hex")?;
+
+            let chacha_key = match wrap_cipher.decrypt(wrap_nonce, wrapped_key.as_ref()) {
+                Ok(k) => {
+                    println!("[DEC-7.{}] ChaCha key unwrap SUCCESS", idx);
+                    k
+                }
+                Err(_) => {
+                    println!("[DEC-7.{}] ChaCha key unwrap FAILED", idx);
+                    continue;
+                }
+            };
+
 
         let file_cipher = ChaCha20Poly1305::new(Key::from_slice(&chacha_key));
 
