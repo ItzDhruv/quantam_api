@@ -14,6 +14,15 @@ use signature::kyber::generate_kyber_keypair;
 use encrypion::encryption::encrypt_file_handler;
 use encrypion::decryption::decrypt_file_handler;
 
+mod did;
+
+use did::create::create_did_handler;
+use did::resolver::resolve_did_handler;
+
+
+use did::public_keys::get_public_keys_handler;
+
+
 #[tokio::main]
 async fn main() {
     println!("Server runs on http://localhost:3000");
@@ -29,6 +38,13 @@ async fn main() {
             "/signature/sr25519_hk",
             get(sr25519_hybrid::hybrid_sr25519_kyber_handler),
         )
+
+
+    // DID APIs
+    .route("/did/create", post(create_did_handler))
+    .route("/did/{did}", get(resolve_did_handler))
+       .route("/did/{did}/keys", get(get_public_keys_handler))
+
 
         //  File encryption APIs
         .route("/encrypt/file", post(encrypt_file_handler))

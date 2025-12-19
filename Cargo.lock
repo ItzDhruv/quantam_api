@@ -2189,6 +2189,7 @@ dependencies = [
  "rand",
  "rand_core 0.9.3",
  "serde",
+ "serde_json",
  "sp-core",
  "tokio",
  "x25519-dalek",

@@ -120,7 +120,7 @@ fn generate_hybrid_keypair() -> (
     )
 }
 
-fn get_hybrid_keypair_json() -> HybridKeypairJson {
+pub fn get_hybrid_keypair_json() -> HybridKeypairJson {
     let (pk, sk, wallet) = generate_hybrid_keypair();
 
     HybridKeypairJson {
