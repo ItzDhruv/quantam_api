@@ -1,6 +1,6 @@
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DidDocument {
     pub id: String,
     pub controller: String,
@@ -8,7 +8,7 @@ pub struct DidDocument {
     pub keyAgreement: Vec<KeyAgreement>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct VerificationMethod {
     pub id: String,
     pub r#type: String,
@@ -16,7 +16,7 @@ pub struct VerificationMethod {
     pub publicKeyHex: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct KeyAgreement {
     pub id: String,
     pub r#type: String,

@@ -1,9 +1,10 @@
-use axum::{Json, response::IntoResponse};
+use axum::{extract::State, Json, response::IntoResponse};
 use crate::did::model::*;
+use crate::did::store::DidStore;
 use crate::signature::sr25519_hybrid::get_hybrid_keypair_json;
 
 /// POST /did/create
-pub async fn create_did_handler() -> impl IntoResponse {
+pub async fn create_did_handler(State(store): State<DidStore>) -> impl IntoResponse {
 
     let hybrid = get_hybrid_keypair_json();
 
@@ -40,6 +41,9 @@ pub async fn create_did_handler() -> impl IntoResponse {
             }
         ],
     };
+
+    // Persist so the resolver and key-lookup endpoints can serve it later.
+    store.insert(did.clone(), doc.clone());
 
     Json(serde_json::json!({
         "did": did,

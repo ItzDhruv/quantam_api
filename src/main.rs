@@ -18,6 +18,7 @@ mod did;
 
 use did::create::create_did_handler;
 use did::resolver::resolve_did_handler;
+use did::store::DidStore;
 
 
 use did::public_keys::get_public_keys_handler;
@@ -26,6 +27,9 @@ use did::public_keys::get_public_keys_handler;
 #[tokio::main]
 async fn main() {
     println!("Server runs on http://localhost:3000");
+
+    // Shared in-memory registry of created DID documents.
+    let did_store = DidStore::default();
 
     let app = Router::new()
         .route("/", get(|| async { "Scanbo key generation" }))
@@ -48,7 +52,9 @@ async fn main() {
 
         //  File encryption APIs
         .route("/encrypt/file", post(encrypt_file_handler))
-        .route("/decrypt/file", post(decrypt_file_handler));
+        .route("/decrypt/file", post(decrypt_file_handler))
+
+        .with_state(did_store);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
         .await
